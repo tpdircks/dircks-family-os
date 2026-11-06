@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+  <meta name="theme-color" content="#122c2b">
+  <title>Dircks Family OS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" crossorigin="anonymous" defer></script>
+  <script src="config.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <noscript><div class="noscript">Dircks Family OS needs JavaScript for secure sign-in.</div></noscript>
+
+  <main id="login-screen" class="login-shell">
+    <section class="login-brand" aria-label="About this private dashboard">
+      <div class="brand-mark" aria-hidden="true">D</div>
+      <p class="eyebrow light">DIRCKS FAMILY</p>
+      <h1>Your whole financial picture.<br>Private by design.</h1>
+      <p class="brand-copy">One secure place for your accounts, home equity, income, and the month ahead.</p>
+      <div class="privacy-line"><span class="privacy-dot"></span>Only your approved account can see your data.</div>
+    </section>
+    <section class="login-panel">
+      <div id="login-form-view">
+        <p class="eyebrow">WELCOME HOME</p>
+        <h2>Sign in to Family OS</h2>
+        <p class="muted">Use the email and password for your private account.</p>
+        <form id="login-form" autocomplete="on">
+          <label for="email">Email address</label>
+          <input id="email" name="email" type="email" value="tpdircks@gmail.com" autocomplete="username" required readonly>
+          <div class="label-row"><label for="password">Password</label></div>
+          <input id="password" name="password" type="password" autocomplete="current-password" minlength="12" required>
+          <button id="login-button" class="button primary full" type="submit">Sign in securely</button>
+          <p id="login-status" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+        <button id="recovery-button" class="text-button" type="button">Email me a password reset link</button>
+        <div class="login-note"><strong>No public signups.</strong> Your dashboard is available only to the account approved by you.</div>
+      </div>
+      <form id="set-password-view" class="is-hidden" autocomplete="off">
+        <p class="eyebrow">YOUR PRIVATE ACCOUNT</p>
+        <h2>Choose your password</h2>
+        <p class="muted">Use at least 12 characters. Never share this password or reuse it on another site.</p>
+        <label for="new-password">New password</label>
+        <input id="new-password" name="new-password" type="password" autocomplete="new-password" minlength="12" required>
+        <label for="confirm-password">Confirm new password</label>
+        <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="12" required>
+        <button id="set-password-button" class="button primary full" type="submit">Save my password</button>
+        <p id="password-status" class="form-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+
+  <div id="app-shell" class="app-shell is-hidden">
+    <header class="topbar">
+      <div class="topbar-brand"><div class="small-mark" aria-hidden="true">D</div><div><div class="app-name">Dircks Family <span>OS</span></div><div class="app-caption">Private family finances</div></div></div>
+      <div class="session-controls"><span class="secure-badge"><span></span>Private session</span><button id="sign-out" class="button secondary" type="button">Sign out</button></div>
+    </header>
+    <main id="dashboard" class="dashboard">
+      <section class="welcome-row"><div><p id="today-label" class="eyebrow"></p><h1>Good to see you.</h1><p class="muted">Here is where your family stands today.</p></div><button id="refresh-data" class="button secondary" type="button">Refresh dashboard</button></section>
+      <p id="data-error" class="error-banner is-hidden" role="alert"></p>
+
+      <section class="hero-grid" aria-label="Family net worth">
+        <div class="net-worth-card">
+          <div class="hero-topline"><span>TOTAL NET WORTH</span><span class="live-dot"></span></div>
+          <div id="net-worth" class="hero-number">$0.00</div>
+          <p id="as-of-summary" class="hero-note">Assets minus liabilities</p>
+          <div class="hero-split"><div><span>Total assets</span><strong id="hero-assets">$0.00</strong></div><div><span>Total liabilities</span><strong id="hero-liabilities">$0.00</strong></div></div>
+        </div>
+        <div class="balance-card">
+          <div class="section-heading"><h2>What you own vs. owe</h2><span class="pill">Today</span></div>
+          <div id="balance-bar" class="balance-bar" aria-label="Assets compared with liabilities"><div id="asset-share"></div><div id="liability-share"></div></div>
+          <div class="balance-legend"><div><span class="legend-dot assets"></span><span>Assets</span><strong id="asset-percent">0%</strong></div><div><span class="legend-dot liabilities"></span><span>Liabilities</span><strong id="liability-percent">0%</strong></div></div>
+          <div class="equity-grid"><div><span>Murray home equity</span><strong id="murray-equity">$0.00</strong><small id="murray-equity-note">Assessed value minus mortgage</small></div><div><span>Acura equity</span><strong id="acura-equity">$0.00</strong><small>Estimated value minus auto loan</small></div></div>
+        </div>
+      </section>
+
+      <div id="attention-banner" class="attention is-hidden" role="note"></div>
+
+      <section class="content-grid">
+        <div class="card history-card"><div class="section-heading"><div><p class="eyebrow">YOUR PROGRESS</p><h2>Net worth history</h2></div><span class="pill">From daily snapshots</span></div><div id="history-chart" class="history-chart"></div><p id="history-caption" class="small muted"></p></div>
+        <div class="card plan-card"><div class="section-heading"><div><p class="eyebrow">NEXT UP</p><h2>November 13 plan</h2></div><span id="planned-bills-total" class="pill accent">$0.00</span></div><div id="upcoming-bills" class="bills-list"></div></div>
+      </section>
+
+      <section class="card accounts-card"><div class="section-heading"><div><p class="eyebrow">THE FULL PICTURE</p><h2>Your accounts</h2></div><div class="segmented" role="group" aria-label="Account type"><button class="selected" data-account-filter="asset" type="button">Assets <span id="asset-count">0</span></button><button data-account-filter="liability" type="button">Liabilities <span id="liability-count">0</span></button></div></div><div id="accounts-list" class="accounts-list"></div><p class="small muted account-footnote">Linked balances come from your connected Finance accounts. Manual values are estimates or values from your other sources. Last four digits only.</p></section>
+
+      <section class="content-grid lower-grid">
+        <div class="card"><div class="section-heading"><div><p class="eyebrow">HOME AND VEHICLES</p><h2>Equity at a glance</h2></div></div><div id="property-equity" class="equity-list"></div></div>
+        <div class="card"><div class="section-heading"><div><p class="eyebrow">MONEY COMING IN</p><h2>Income</h2></div></div><div id="income-list" class="income-list"></div><p class="small muted">Gross rent is not the same as profit. Payroll is shown per pay period, not added to monthly rent.</p></div>
+      </section>
+
+      <section class="card"><div class="section-heading"><div><p class="eyebrow">LOOKING AHEAD</p><h2>All upcoming payments</h2></div><span class="pill">No payments are made here</span></div><div id="all-bills" class="table-wrap"><table><thead><tr><th scope="col">Payment</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col" class="right">Amount</th></tr></thead><tbody id="bills-table-body"></tbody></table></div><div id="bill-notes" class="bill-notes"></div></section>
+
+      <section class="mortgage-card card"><div><p class="eyebrow">THE LONG VIEW</p><h2>Murray mortgage</h2><p class="muted">Your fixed 3.000% home loan, with the next payment clearly in view.</p></div><div id="mortgage-details" class="mortgage-stats"></div></section>
+
+      <footer><span>Dircks Family OS</span><span>Secure access. No bank credentials or full account numbers stored.</span></footer>
+    </main>
+  </div>
+  <div id="loading" class="loading is-hidden" role="status" aria-live="polite"><div class="spinner"></div><p>Opening your private dashboard...</p></div>
+</body>
+</html>

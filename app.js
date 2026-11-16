@@ -172,7 +172,8 @@
 
   function renderAccounts(accounts) {
     $('accounts-list').replaceChildren();
-    const filtered = accounts.filter((a) => a.class === currentFilter).sort((a, b) => a.institution.localeCompare(b.institution) || Number(b.current_balance) - Number(a.current_balance));
+    const isClosed = (a) => a.source === 'manual' && Number(a.current_balance) === 0 && /paid off|traded in|closed/i.test(a.source_detail || '');
+    const filtered = accounts.filter((a) => a.class === currentFilter && !isClosed(a)).sort((a, b) => a.institution.localeCompare(b.institution) || Number(b.current_balance) - Number(a.current_balance));
     const institutions = [...new Set(filtered.map((a) => a.institution))];
     for (const institution of institutions) {
       const rows = filtered.filter((a) => a.institution === institution);
@@ -283,7 +284,10 @@
 
   function renderHistory(snapshots) {
     const days = [...new Set(snapshots.map((s) => s.snapshot_date))].sort();
-    const totals = days.map((day) => ({ day, value: snapshots.filter((s) => s.snapshot_date === day).reduce((sum, s) => sum + Number(s.signed_balance), 0) }));
+    const totals = days.map((day) => {
+      const rows = snapshots.filter((s) => s.snapshot_date === day);
+      return { day, value: rows.reduce((sum, s) => sum + Number(s.signed_balance), 0), estimate: rows.some((s) => s.is_estimate) };
+    });
     const $chart = $('history-chart');
     $chart.replaceChildren();
     if (totals.length < 2) {
@@ -295,24 +299,37 @@
       return;
     }
     const width = 700, height = 250, left = 65, right = 25, top = 22, bottom = 40;
+    const t = (day) => new Date(`${day}T12:00:00`).getTime();
+    const t0 = t(totals[0].day), t1 = t(totals[totals.length - 1].day);
     const values = totals.map((r) => r.value);
     let min = Math.min(...values), max = Math.max(...values);
-    const padding = Math.max((max - min) * .18, Math.abs(max) * .005, 100);
+    const padding = Math.max((max - min) * .08, 100);
     min -= padding; max += padding;
-    const x = (index) => left + (index / Math.max(totals.length - 1, 1)) * (width - left - right);
+    const x = (day) => left + ((t(day) - t0) / Math.max(t1 - t0, 1)) * (width - left - right);
     const y = (value) => top + ((max - value) / (max - min || 1)) * (height - top - bottom);
-    const points = totals.map((r, i) => `${x(i).toFixed(1)},${y(r.value).toFixed(1)}`).join(' ');
-    const areaPoints = `${left},${height - bottom} ${points} ${width - right},${height - bottom}`;
+    const pts = (rows) => rows.map((r) => `${x(r.day).toFixed(1)},${y(r.value).toFixed(1)}`).join(' ');
+    const lastEst = totals.reduce((i, r, idx) => (r.estimate ? idx : i), -1);
+    const estRows = lastEst >= 0 ? totals.slice(0, lastEst + 2) : [];
+    const actualRows = lastEst >= 0 ? totals.slice(lastEst + 1) : totals;
+    const areaPoints = `${left},${height - bottom} ${pts(totals)} ${width - right},${height - bottom}`;
     let grid = '';
     for (let i = 0; i <= 3; i++) {
       const v = min + ((max - min) * i / 3);
       const yy = y(v);
       grid += `<line x1="${left}" x2="${width - right}" y1="${yy}" y2="${yy}" stroke="#e4eae1" stroke-width="1" /><text x="${left - 10}" y="${yy + 4}" text-anchor="end">${escapeXml(money(v, 0))}</text>`;
     }
+    const years = [];
+    for (let yr = new Date(t0).getFullYear() + 1; yr <= new Date(t1).getFullYear(); yr++) years.push(yr);
+    const yearLabel = (xx, yr) => `<text class="chart-year" x="${xx.toFixed(1)}" y="${height - 24}" text-anchor="start">${yr}</text>`;
+    const ticks = yearLabel(left, new Date(t0).getFullYear()) + years.map((yr) => { const xx = x(`${yr}-01-01`); return `<line x1="${xx.toFixed(1)}" x2="${xx.toFixed(1)}" y1="${top}" y2="${height - bottom}" stroke="#e4eae1" stroke-width="1" />${yearLabel(xx + 3, yr)}`; }).join('');
     const first = totals[0], last = totals[totals.length - 1];
-    $chart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Net worth history from ${escapeXml(first.day)} to ${escapeXml(last.day)}"><defs><linearGradient id="history-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5d9e77" stop-opacity=".27"/><stop offset="100%" stop-color="#5d9e77" stop-opacity="0"/></linearGradient></defs>${grid}<polygon class="chart-area" points="${areaPoints}"/><polyline class="chart-line" points="${points}"/><circle class="chart-point" cx="${x(totals.length - 1)}" cy="${y(last.value)}" r="5"/><text x="${left}" y="${height - 10}">${escapeXml(friendlyDate(first.day))}</text><text x="${width - right}" y="${height - 10}" text-anchor="end">${escapeXml(friendlyDate(last.day))}</text></svg>`;
+    const estLine = estRows.length > 1 ? `<polyline class="chart-line" style="stroke-dasharray:6 5;opacity:.75" points="${pts(estRows)}"/>` : '';
+    const actLine = actualRows.length > 1 ? `<polyline class="chart-line" points="${pts(actualRows)}"/>` : '';
+    $chart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Net worth history from ${escapeXml(first.day)} to ${escapeXml(last.day)}"><defs><linearGradient id="history-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5d9e77" stop-opacity=".27"/><stop offset="100%" stop-color="#5d9e77" stop-opacity="0"/></linearGradient></defs>${grid}${ticks}<polygon class="chart-area" points="${areaPoints}"/>${estLine}${actLine}<circle class="chart-point" cx="${x(last.day)}" cy="${y(last.value)}" r="5"/><text x="${left}" y="${height - 8}">${escapeXml(friendlyDate(first.day))}</text><text x="${width - right}" y="${height - 8}" text-anchor="end">${escapeXml(friendlyDate(last.day))}</text></svg>`;
     const change = last.value - first.value;
-    $('history-caption').textContent = `${totals.length} daily snapshots. Net worth ${change >= 0 ? 'increased' : 'decreased'} ${money(Math.abs(change))} during this period. Latest: ${money(last.value)} on ${friendlyDate(last.day, true)}.`;
+    let caption = `Net worth ${change >= 0 ? 'grew' : 'fell'} ${money(Math.abs(change))} from ${money(first.value)} on ${friendlyDate(first.day, true)} to ${money(last.value)} on ${friendlyDate(last.day, true)}.`;
+    if (lastEst >= 0) caption += ` Dashed line = estimated history (home value from a local price index; the 2019 to 2021 loan balance is modeled). Before Nov 2025 it counts home equity (plus one vehicle and its loan from May 2025); Nov 2025 to Oct 2026 adds bank, card and vehicle balances; all accounts from Nov 6, 2026.`;
+    $('history-caption').textContent = caption;
   }
 
   function renderAttention(accounts, bills) {
@@ -355,7 +372,7 @@
     try {
       const [accounts, snapshots, income, bills, mortgageTerms] = await Promise.all([
         api.from('accounts').select('id,institution,name,mask,class,category,source,source_detail,current_balance,as_of').order('institution').order('name'),
-        api.from('snapshots').select('snapshot_date,signed_balance').order('snapshot_date', { ascending: true }).limit(6000),
+        api.from('snapshots').select('snapshot_date,signed_balance,is_estimate').order('snapshot_date', { ascending: true }).limit(10000),
         api.from('income').select('id,name,amount,frequency,detail,starts_on,sort_order').order('sort_order'),
         api.from('bills').select('id,name,amount,due_date,status,status_label,category,detail,notes').order('due_date'),
         api.from('mortgage_terms').select('id,interest_rate,original_principal,term_years,principal_and_interest,next_payment_amount,next_payment_date,notes').limit(1)

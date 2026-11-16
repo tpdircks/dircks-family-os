@@ -112,6 +112,7 @@ input[readonly] { background: #f7f8f6; color: #64766b; }
 .history-chart .chart-line { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .history-chart .chart-area { fill: url(#history-gradient); }
 .history-chart .chart-point { fill: white; stroke: var(--green); stroke-width: 3; }
+.history-chart .chart-year { font-size: 11px; fill: #687c74; }
 .empty-history { text-align: center; padding: 30px 20px; }
 .empty-history .empty-icon { width: 54px; height: 54px; display: grid; place-items: center; margin: auto auto 16px; border-radius: 50%; background: var(--green-light); color: var(--green); font-family: Georgia, serif; font-size: 2rem; }
 .empty-history h3 { font-size: 1rem; margin-bottom: 8px; }

@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" crossorigin="anonymous" defer></script>
   <script src="config.js" defer></script>
-  <script src="app.js?v=20261116" defer></script>
+  <script src="app.js?v=20261122" defer></script>
 </head>
 <body>
   <noscript><div class="noscript">Dircks Family OS needs JavaScript for secure sign-in.</div></noscript>
@@ -58,10 +58,14 @@
 
   <div id="app-shell" class="app-shell is-hidden">
     <header class="topbar">
-      <div class="topbar-brand"><div class="small-mark" aria-hidden="true">D</div><div><div class="app-name">Dircks Family <span>OS</span></div><div class="app-caption">Private family finances</div></div></div>
+      <div class="topbar-brand"><div class="small-mark" aria-hidden="true">D</div><div><div class="app-name">Dircks Family <span>OS</span></div><div class="app-caption">Private life dashboard</div></div></div>
       <div class="session-controls"><span class="secure-badge"><span></span>Private session</span><button id="sign-out" class="button secondary" type="button">Sign out</button></div>
     </header>
+    <nav class="tabbar" aria-label="Life OS sections">
+      <div class="tablist" role="tablist" data-tablist aria-label="Sections"></div>
+    </nav>
     <main id="dashboard" class="dashboard">
+      <section id="panel-finances" data-tab-panel="finances" role="tabpanel" aria-labelledby="tab-finances" tabindex="0">
       <section class="welcome-row"><div><p id="today-label" class="eyebrow"></p><h1>Good to see you.</h1><p class="muted">Here is where your family stands today.</p></div><button id="refresh-data" class="button secondary" type="button">Refresh dashboard</button></section>
       <p id="data-error" class="error-banner is-hidden" role="alert"></p>
 
@@ -99,6 +103,98 @@
       <section class="mortgage-card card"><div><p class="eyebrow">THE LONG VIEW</p><h2>Murray mortgage</h2><p class="muted">Your fixed 3.000% home loan, with the next payment clearly in view.</p></div><div id="mortgage-details" class="mortgage-stats"></div></section>
 
       <footer><span>Dircks Family OS</span><span>Secure access. No bank credentials or full account numbers stored.</span></footer>
+      </section>
+
+      <section id="panel-physical" data-tab-panel="physical" role="tabpanel" aria-labelledby="tab-physical" tabindex="0" hidden>
+        <section class="welcome-row health-welcome">
+          <div>
+            <p id="health-today" class="eyebrow"></p>
+            <h1>Physical progress.</h1>
+            <p class="muted">Log a weigh-in, follow today’s meals, and keep the reference assessment in view.</p>
+          </div>
+          <div class="health-actions">
+            <div class="segmented" role="group" aria-label="Plan language">
+              <button type="button" id="lang-pt" aria-pressed="true">PT</button>
+              <button type="button" id="lang-en" aria-pressed="false">EN</button>
+            </div>
+            <button id="health-refresh" class="button secondary" type="button">Refresh</button>
+          </div>
+        </section>
+        <p id="health-status" class="small muted" role="status" aria-live="polite"></p>
+        <p id="health-error" class="error-banner is-hidden" role="alert"></p>
+
+        <section class="hero-grid" aria-label="Weight progress">
+          <div class="net-worth-card health-hero-card">
+            <div class="hero-topline"><span>CURRENT WEIGHT</span><span id="health-weight-when"></span></div>
+            <div id="health-current" class="hero-number">—</div>
+            <p id="health-current-meta" class="hero-note">Your latest weigh-in</p>
+            <div id="health-progress" class="progress-track" hidden><div id="health-progress-fill"></div></div>
+            <p id="health-progress-label" class="progress-label"></p>
+            <div class="hero-split">
+              <div><span id="health-lost-label">Lost since start</span><strong id="health-lost">—</strong></div>
+              <div><span>To goal</span><strong id="health-to-go">—</strong></div>
+            </div>
+          </div>
+          <div class="balance-card health-side">
+            <div class="section-heading"><h2>Goal and reference</h2><span class="pill">Private</span></div>
+            <div class="health-metrics">
+              <div class="metric-tile"><span>Goal weight</span><strong id="health-goal">—</strong><small id="health-goal-meta">From your reference assessment</small></div>
+              <div class="metric-tile metric-tile-highlight"><span>Reference body fat</span><strong id="health-fat">—</strong><small id="health-fat-meta">Reference assessment</small></div>
+              <div class="metric-tile"><span>Next assessment</span><strong id="health-countdown">—</strong><small id="health-countdown-meta">From your active plan</small></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading"><div><p class="eyebrow">TREND</p><h2>Weight over time</h2></div><span class="pill">Morning and evening</span></div>
+          <div id="health-chart" class="history-chart weight-chart"></div>
+          <p id="health-chart-caption" class="small muted"></p>
+        </section>
+
+        <section class="card">
+          <div class="section-heading"><div><p class="eyebrow">TODAY</p><h2>Log weight</h2></div><span class="pill">Morning default</span></div>
+          <form id="weight-form" class="weight-form">
+            <div class="weight-form-grid">
+              <div class="weight-field">
+                <label for="weight-kg">Weight (kg)</label>
+                <input id="weight-kg" name="weight-kg" type="text" inputmode="decimal" autocomplete="off" required>
+              </div>
+              <div>
+                <label for="weight-date">Date</label>
+                <input id="weight-date" name="weight-date" type="date" required>
+              </div>
+            </div>
+            <fieldset class="time-fieldset">
+              <legend>Time of day</legend>
+              <div class="segmented" role="group" aria-label="Time of day">
+                <button type="button" data-weight-time="morning" class="selected" aria-pressed="true">Morning</button>
+                <button type="button" data-weight-time="evening" aria-pressed="false">Evening</button>
+                <button type="button" data-weight-time="other" aria-pressed="false">Other</button>
+              </div>
+            </fieldset>
+            <button id="weight-save" class="button primary" type="submit">Save weigh-in</button>
+            <p id="weight-status" class="form-status" role="status" aria-live="polite"></p>
+          </form>
+          <div id="weighin-list" class="weighin-list"></div>
+        </section>
+
+        <section class="card" id="plan-card">
+          <div class="section-heading"><div><p class="eyebrow">TODAY'S PLAN</p><h2 id="plan-title">Meal plan</h2></div></div>
+          <div id="plan-body"></div>
+        </section>
+
+        <section class="card" id="composition-card">
+          <div class="section-heading"><div><p class="eyebrow">BODY COMPOSITION</p><h2>Reference assessment</h2></div><span id="composition-method" class="pill">Reference</span></div>
+          <div id="composition-body"></div>
+        </section>
+
+        <details id="other-readings" class="card other-readings">
+          <summary class="section-heading"><div><p class="eyebrow">OTHER READINGS</p><h2>Estimates and earlier checks</h2></div><span class="pill">Not the reference</span></summary>
+          <div id="other-readings-body"></div>
+        </details>
+
+        <footer><span>Dircks Family OS</span><span>Health figures stay in your private account and clear when you sign out.</span></footer>
+      </section>
     </main>
   </div>
   <div id="loading" class="loading is-hidden" role="status" aria-live="polite"><div class="spinner"></div><p>Opening your private dashboard...</p></div>

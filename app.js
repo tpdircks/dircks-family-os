@@ -39,6 +39,20 @@
   let cachedData = { accounts: [], snapshots: [], income: [], bills: [], mortgageTerms: [] };
   let currentFilter = 'asset';
 
+  /* Life OS tabs. Add one entry, one [data-tab-panel] section, and an optional
+   * load/clear hook. See README.md. localStorage stores the tab id only. */
+  const ASSET_VERSION = '20261122';
+  const TAB_STORAGE_KEY = 'family-os-tab';
+  const TABS = [
+    { id: 'finances', label: 'Finances', load: loadFinances, clear: clearFinances },
+    { id: 'physical', label: 'Physical Progress', load: loadPhysicalTab, clear: clearPhysicalTab }
+  ];
+  const tabRuntime = new Map();
+  let sessionEpoch = 0;
+  let userChoseTab = false;
+  let appliedSavedTab = false;
+  let didPrefetchTab = false;
+
   function setStatus(id, message, success = false) {
     const node = $(id);
     node.textContent = message;
@@ -56,7 +70,166 @@
     node.classList.remove('is-hidden');
   }
 
-  function resetDataView() {
+  function savedTabId() {
+    try {
+      const value = localStorage.getItem(TAB_STORAGE_KEY);
+      return TABS.some((tab) => tab.id === value) ? value : TABS[0].id;
+    } catch (error) {
+      return TABS[0].id;
+    }
+  }
+
+  function markTabLoaded(id, loaded) {
+    const state = tabRuntime.get(id) || {};
+    state.loaded = loaded;
+    tabRuntime.set(id, state);
+  }
+
+  function mountTabs() {
+    const list = document.querySelector('[data-tablist]');
+    if (!list || list.dataset.ready === '1') return;
+    list.dataset.ready = '1';
+    for (const tab of TABS) {
+      const button = el('button', 'tab', tab.label);
+      button.type = 'button';
+      button.id = `tab-${tab.id}`;
+      button.setAttribute('role', 'tab');
+      button.setAttribute('aria-controls', `panel-${tab.id}`);
+      button.dataset.tab = tab.id;
+      button.tabIndex = -1;
+      button.setAttribute('aria-selected', 'false');
+      list.append(button);
+    }
+    list.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-tab]');
+      if (!button) return;
+      activateTab(button.dataset.tab, { user: true });
+    });
+    list.addEventListener('keydown', onTabKeydown);
+    selectTab(TABS[0].id);
+  }
+
+  function onTabKeydown(event) {
+    const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+    if (!keys.includes(event.key)) return;
+    const tabs = [...document.querySelectorAll('[data-tablist] [role="tab"]')];
+    if (!tabs.length) return;
+    const focused = tabs.indexOf(document.activeElement);
+    const selected = tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true');
+    const current = focused >= 0 ? focused : Math.max(0, selected);
+    let next = current;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % tabs.length;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (current - 1 + tabs.length) % tabs.length;
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = tabs.length - 1;
+    event.preventDefault();
+    activateTab(tabs[next].dataset.tab, { user: true, focus: true });
+  }
+
+  function selectTab(id, { focus = false } = {}) {
+    const chosen = TABS.some((tab) => tab.id === id) ? id : TABS[0].id;
+    for (const tab of TABS) {
+      const button = document.getElementById(`tab-${tab.id}`);
+      const panel = document.querySelector(`[data-tab-panel="${tab.id}"]`);
+      const selected = tab.id === chosen;
+      if (button) {
+        button.setAttribute('aria-selected', selected ? 'true' : 'false');
+        button.tabIndex = selected ? 0 : -1;
+        if (selected && focus) button.focus();
+      }
+      if (panel) {
+        panel.hidden = !selected;
+        panel.classList.toggle('is-hidden', !selected);
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', `tab-${tab.id}`);
+      }
+    }
+  }
+
+  function showTabFailure(tab) {
+    const panel = document.querySelector(`[data-tab-panel="${tab.id}"]`);
+    if (!panel) return;
+    let banner = panel.querySelector('[data-tab-error]');
+    if (!banner) {
+      banner = el('p', 'error-banner');
+      banner.setAttribute('data-tab-error', '');
+      banner.setAttribute('role', 'alert');
+      panel.prepend(banner);
+    }
+    banner.classList.remove('is-hidden');
+    banner.textContent = 'This section could not be opened. The rest of your dashboard is still available.';
+  }
+
+  function clearTabFailure(tab) {
+    document.querySelector(`[data-tab-panel="${tab.id}"]`)?.querySelector('[data-tab-error]')?.remove();
+  }
+
+  async function activateTab(id, { user = false, focus = false, force = false } = {}) {
+    const tab = TABS.find((item) => item.id === id) || TABS[0];
+    if (user) {
+      userChoseTab = true;
+      try { localStorage.setItem(TAB_STORAGE_KEY, tab.id); } catch (error) { /* storage unavailable */ }
+    }
+    selectTab(tab.id, { focus });
+    if (typeof tab.load !== 'function') return;
+    const state = tabRuntime.get(tab.id) || { loaded: false, inflight: null };
+    tabRuntime.set(tab.id, state);
+    if (state.loaded && !force) return;
+    if (state.inflight && !force) return state.inflight;
+    const epoch = sessionEpoch;
+    state.inflight = (async () => {
+      try {
+        clearTabFailure(tab);
+        await tab.load();
+        if (epoch !== sessionEpoch) return;
+        state.loaded = true;
+      } catch (error) {
+        if (epoch !== sessionEpoch) return;
+        state.loaded = false;
+        console.error(`Tab "${tab.id}" failed.`, error);
+        showTabFailure(tab);
+      } finally {
+        state.inflight = null;
+      }
+    })();
+    return state.inflight;
+  }
+
+  function prefetchSavedTab() {
+    if (didPrefetchTab) return;
+    didPrefetchTab = true;
+    const saved = savedTabId();
+    if (saved === 'finances') return;
+    activateTab(saved);
+  }
+
+  function revealApp({ armIdle = false } = {}) {
+    if (!appliedSavedTab && !userChoseTab) {
+      appliedSavedTab = true;
+      selectTab(savedTabId());
+    }
+    $('login-screen').classList.add('is-hidden');
+    $('app-shell').classList.remove('is-hidden');
+    if (armIdle) armIdleTimeout();
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[data-family-src="${CSS.escape(src)}"]`);
+      if (existing?.dataset.loaded === '1') { resolve(); return; }
+      const script = document.createElement('script');
+      script.src = src;
+      script.dataset.familySrc = src;
+      script.onload = () => { script.dataset.loaded = '1'; resolve(); };
+      script.onerror = () => {
+        script.remove();
+        reject(new Error('The section script could not be loaded.'));
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  function clearFinances() {
     // Clear both DOM and in-memory private data on logout. Never cache balances.
     cachedData = { accounts: [], snapshots: [], income: [], bills: [], mortgageTerms: [] };
     $('accounts-list').replaceChildren();
@@ -77,6 +250,41 @@
     $('history-caption').textContent = '';
     $('planned-bills-total').textContent = '$0.00';
     $('attention-banner').classList.add('is-hidden');
+  }
+
+  function clearPhysicalTab() {
+    if (!window.FamilyOSPhysical) return;
+    try { window.FamilyOSPhysical.clear(); } catch (error) {
+      console.error('Could not clear physical progress.', error);
+    }
+  }
+
+  async function loadFinances() {
+    await loadDashboard();
+  }
+
+  async function loadPhysicalTab() {
+    await loadScript(`health-model.js?v=${ASSET_VERSION}`);
+    await loadScript(`physical.js?v=${ASSET_VERSION}`);
+    if (!window.FamilyOSPhysical || !window.FamilyOSHealthModel) throw new Error('Physical progress did not initialize.');
+    await window.FamilyOSPhysical.load({ client });
+  }
+
+  function resetDataView() {
+    sessionEpoch += 1;
+    userChoseTab = false;
+    appliedSavedTab = false;
+    didPrefetchTab = false;
+    for (const state of tabRuntime.values()) {
+      state.loaded = false;
+      state.inflight = null;
+    }
+    for (const tab of TABS) {
+      if (typeof tab.clear !== 'function') continue;
+      try { tab.clear(); } catch (error) {
+        console.error(`Could not clear the ${tab.id} tab.`, error);
+      }
+    }
     $('app-shell').classList.add('is-hidden');
     $('login-screen').classList.remove('is-hidden');
     $('set-password-view').classList.add('is-hidden');
@@ -358,35 +566,39 @@
     renderMortgageDetails(data.mortgageTerms);
     renderAttention(accounts, data.bills);
     $('today-label').textContent = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver' }).format(new Date()).toUpperCase();
-    $('login-screen').classList.add('is-hidden');
-    $('app-shell').classList.remove('is-hidden');
-    armIdleTimeout();
+    revealApp({ armIdle: true });
     return totals;
   }
 
   async function loadDashboard() {
+    const epoch = sessionEpoch;
     const auth = await approvedSession();
-    if (!auth) return;
+    if (!auth || epoch !== sessionEpoch) return;
     activeUser = auth.user;
     const api = client.schema('family_api');
     try {
-      const [accounts, snapshots, income, bills, mortgageTerms] = await Promise.all([
+      const financeQueries = Promise.all([
         api.from('accounts').select('id,institution,name,mask,class,category,source,source_detail,current_balance,as_of').order('institution').order('name'),
         api.from('snapshots').select('snapshot_date,signed_balance,is_estimate').order('snapshot_date', { ascending: true }).limit(10000),
         api.from('income').select('id,name,amount,frequency,detail,starts_on,sort_order').order('sort_order'),
         api.from('bills').select('id,name,amount,due_date,status,status_label,category,detail,notes').order('due_date'),
         api.from('mortgage_terms').select('id,interest_rate,original_principal,term_years,principal_and_interest,next_payment_amount,next_payment_date,notes').limit(1)
       ]);
+      prefetchSavedTab();
+      const [accounts, snapshots, income, bills, mortgageTerms] = await financeQueries;
+      if (epoch !== sessionEpoch) return;
       const queries = { accounts, snapshots, income, bills, mortgageTerms };
       const failed = Object.entries(queries).find(([, result]) => result.error);
       if (failed) throw new Error(`${failed[0]}: ${failed[1].error.message}`);
       showError('');
       render(Object.fromEntries(Object.entries(queries).map(([key, result]) => [key, result.data || []])));
+      markTabLoaded('finances', true);
     } catch (error) {
+      if (epoch !== sessionEpoch) return;
+      markTabLoaded('finances', false);
       console.error('Dashboard data request failed:', error);
       showError('Your data could not be loaded right now. Please try again. If the problem continues, your Finance sync may need attention.');
-      $('app-shell').classList.remove('is-hidden');
-      $('login-screen').classList.add('is-hidden');
+      revealApp();
     }
   }
 
@@ -467,6 +679,7 @@
   }
 
   function start() {
+    mountTabs();
     resetDataView();
     $('loading').classList.add('is-hidden');
     const params = new URLSearchParams(window.location.search);

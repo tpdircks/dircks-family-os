@@ -357,3 +357,56 @@ footer { display: flex; justify-content: space-between; gap: 16px; color: var(--
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+[data-tab-panel="calendar"] > .card,
+[data-tab-panel="book"] > .card { margin-bottom: 22px; }
+a.button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; min-height: 44px; }
+.calendar-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 18px; }
+.month-dow { text-align: center; color: var(--ink-soft); font-size: .68rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.month-day { appearance: none; min-height: 84px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: inherit; text-align: left; padding: 6px; font: inherit; }
+.month-day.is-outside { opacity: .45; }
+.month-day.is-today { border-color: var(--forest); box-shadow: inset 0 0 0 1px var(--forest); }
+.month-day.is-selected { background: var(--green-light); }
+.month-num { display: block; font-size: .75rem; font-weight: 700; }
+.month-chip, .month-more { display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .65rem; }
+.month-chip.is-overlap, .cal-flag { color: #8a4b32; font-weight: 700; }
+.cal-day-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.cal-day-head h3, .cal-day-label { margin: 18px 0 0; font-size: .95rem; }
+.cal-event { margin-top: 12px; padding: 14px 14px 14px 16px; border: 1px solid var(--line); border-radius: 12px; }
+.cal-event.is-overlap { border-color: #e2c2b4; background: var(--terracotta-light); }
+.cal-event h3 { margin: 0; font-size: 1rem; }
+.cal-when, .cal-when-alt, .cal-notes, .cal-flag { margin: 6px 0 0; font-size: .84rem; line-height: 1.45; }
+.cal-when-alt { color: var(--ink-soft); }
+.cal-link { color: var(--green); font-size: .8rem; font-weight: 650; }
+.empty-copy { margin: 14px 0 0; color: var(--ink-soft); }
+.book-notes-card { display: flex; flex-direction: column; gap: 6px; margin: 0 0 22px; padding: 22px 24px; border-radius: var(--radius); background: linear-gradient(135deg, var(--forest-deep), #255b45); color: #fff; text-decoration: none; }
+.book-notes-card span:first-child { font-size: .67rem; letter-spacing: .14em; font-weight: 650; color: #d7e4d6; }
+.book-notes-card strong { font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.6rem, 3vw, 2.1rem); font-weight: 400; letter-spacing: -.03em; }
+.book-notes-card span:last-child { color: #d7e4d6; font-size: .88rem; }
+.stage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 16px; }
+.stage-tile { background: #f7f8f5; border-radius: 12px; padding: 12px 14px; }
+.stage-tile span { display: block; color: var(--ink-soft); font-size: .72rem; }
+.stage-tile strong { display: block; margin-top: 6px; font-family: Georgia, "Times New Roman", serif; font-size: 1.6rem; font-weight: 400; }
+.stage-name { display: block; }
+.stage-raw { display: block; margin-top: 3px; color: var(--ink-soft); font-size: .72rem; }
+.book-place { color: var(--green); font-weight: 650; }
+.book-note { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; max-width: 28rem; }
+@media (max-width: 700px) {
+  .month-day { min-height: 52px; padding: 4px; }
+  .month-chip, .month-more { display: none; }
+  .tablist [role="tab"] { padding: 10px 12px; }
+  [data-tab-panel="calendar"] .calendar-nav { width: 100%; }
+  [data-tab-panel="calendar"] .welcome-row .button,
+  [data-tab-panel="book"] .welcome-row .button { width: 100%; }
+  .book-notes-card { padding: 18px; }
+  [data-tab-panel="book"] .table-wrap { overflow: visible; }
+  [data-tab-panel="book"] table,
+  [data-tab-panel="book"] tbody,
+  [data-tab-panel="book"] tr,
+  [data-tab-panel="book"] td { display: block; width: 100%; }
+  [data-tab-panel="book"] thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  [data-tab-panel="book"] tr { margin: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  [data-tab-panel="book"] td { border: 0; padding: 2px 0 2px 5.6rem; position: relative; min-height: 1.4em; }
+  [data-tab-panel="book"] td::before { content: attr(data-label); position: absolute; left: 0; top: 2px; width: 5.2rem; color: var(--ink-soft); font-size: .68rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+  .book-note { max-width: none; }
+}

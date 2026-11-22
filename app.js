@@ -41,10 +41,12 @@
 
   /* Life OS tabs. Add one entry, one [data-tab-panel] section, and an optional
    * load/clear hook. See README.md. localStorage stores the tab id only. */
-  const ASSET_VERSION = '20261122';
+  const ASSET_VERSION = '20261122b';
   const TAB_STORAGE_KEY = 'family-os-tab';
   const TABS = [
     { id: 'finances', label: 'Finances', load: loadFinances, clear: clearFinances },
+    { id: 'calendar', label: 'Calendar', load: loadCalendarTab, clear: clearCalendarTab },
+    { id: 'book', label: 'Elite Mindset Book', load: loadBookTab, clear: clearBookTab },
     { id: 'physical', label: 'Physical Progress', load: loadPhysicalTab, clear: clearPhysicalTab }
   ];
   const tabRuntime = new Map();
@@ -268,6 +270,37 @@
     await loadScript(`physical.js?v=${ASSET_VERSION}`);
     if (!window.FamilyOSPhysical || !window.FamilyOSHealthModel) throw new Error('Physical progress did not initialize.');
     await window.FamilyOSPhysical.load({ client });
+  }
+
+  function clearCalendarTab() {
+    if (!window.FamilyOSCalendar) return;
+    try { window.FamilyOSCalendar.clear(); } catch (error) {
+      console.error('Could not clear the calendar.', error);
+    }
+  }
+
+  function clearBookTab() {
+    if (!window.FamilyOSBook) return;
+    try { window.FamilyOSBook.clear(); } catch (error) {
+      console.error('Could not clear the book.', error);
+    }
+  }
+
+  async function loadCalendarTab() {
+    await loadScript(`calendar-model.js?v=${ASSET_VERSION}`);
+    await loadScript(`calendar.js?v=${ASSET_VERSION}`);
+    if (!window.FamilyOSCalendar || !window.FamilyOSCalendarModel) throw new Error('Calendar did not initialize.');
+    await window.FamilyOSCalendar.load({ client });
+  }
+
+  async function loadBookTab() {
+    await loadScript(`calendar-model.js?v=${ASSET_VERSION}`);
+    await loadScript(`book-model.js?v=${ASSET_VERSION}`);
+    await loadScript(`book.js?v=${ASSET_VERSION}`);
+    if (!window.FamilyOSBook || !window.FamilyOSBookModel || !window.FamilyOSCalendarModel) {
+      throw new Error('Elite Mindset Book did not initialize.');
+    }
+    await window.FamilyOSBook.load({ client });
   }
 
   function resetDataView() {

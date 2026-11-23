@@ -10,10 +10,10 @@
   <meta name="theme-color" content="#122c2b">
   <title>Dircks Family OS</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261122b">
+  <link rel="stylesheet" href="styles.css?v=20261123a">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" crossorigin="anonymous" defer></script>
   <script src="config.js" defer></script>
-  <script src="app.js?v=20261122b" defer></script>
+  <script src="app.js?v=20261123a" defer></script>
 </head>
 <body>
   <noscript><div class="noscript">Dircks Family OS needs JavaScript for secure sign-in.</div></noscript>
@@ -148,13 +148,16 @@
       </section>
 
       <section id="panel-book" data-tab-panel="book" role="tabpanel" aria-labelledby="tab-book" tabindex="0" hidden>
-        <section class="welcome-row">
+        <section class="welcome-row book-welcome">
           <div>
             <p id="book-today" class="eyebrow"></p>
-            <h1>Elite Mindset Book.</h1>
-            <p class="muted">Booked podcasts and interviews, and where outreach stands.</p>
+            <h1 id="book-title">Elite Mindset Book.</h1>
+            <p id="book-lead" class="muted">Booked podcasts and interviews, and where outreach stands.</p>
           </div>
-          <button id="book-refresh" class="button secondary" type="button">Refresh</button>
+          <div class="book-actions">
+            <div id="book-switch" class="segmented" role="group" aria-label="Books"></div>
+            <button id="book-refresh" class="button secondary" type="button">Refresh</button>
+          </div>
         </section>
         <a id="book-notes-link" class="book-notes-card" href="https://cursor.com/canvas/store-9aec255a-e639-4083-8ff7-a819972f266b/6374ddf5-dfbb-4d55-afb9-e43d0c8e62e9" target="_blank" rel="noopener noreferrer">
           <span>GUEST NOTES</span>
@@ -164,7 +167,26 @@
         <p id="book-status" class="small muted" role="status" aria-live="polite"></p>
         <p id="book-error" class="error-banner is-hidden" role="alert"></p>
 
-        <section class="card">
+        <div id="book-prelaunch" class="is-hidden" hidden>
+          <section class="hero-grid" aria-label="Launch countdown">
+            <div class="net-worth-card book-countdown-card">
+              <div class="hero-topline"><span>LAUNCH</span><span id="book-launch-date"></span></div>
+              <div id="book-countdown" class="hero-number"></div>
+              <p id="book-countdown-note" class="hero-note"></p>
+            </div>
+            <div class="balance-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">MILESTONES</p>
+                  <h2>Key dates</h2>
+                </div>
+              </div>
+              <div id="book-milestones" class="milestone-list"></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="card" id="book-appearances-card">
           <div class="section-heading">
             <div>
               <p class="eyebrow">ON THE CALENDAR</p>
@@ -178,7 +200,7 @@
           <div class="section-heading">
             <div>
               <p class="eyebrow">PIPELINE</p>
-              <h2>Outreach</h2>
+              <h2 id="book-outreach-heading">Outreach</h2>
             </div>
           </div>
           <div id="book-stages" class="stage-grid" aria-label="Outreach counts by stage"></div>

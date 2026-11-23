@@ -41,12 +41,12 @@
 
   /* Life OS tabs. Add one entry, one [data-tab-panel] section, and an optional
    * load/clear hook. See README.md. localStorage stores the tab id only. */
-  const ASSET_VERSION = '20261122b';
+  const ASSET_VERSION = '20261123a';
   const TAB_STORAGE_KEY = 'family-os-tab';
   const TABS = [
     { id: 'finances', label: 'Finances', load: loadFinances, clear: clearFinances },
     { id: 'calendar', label: 'Calendar', load: loadCalendarTab, clear: clearCalendarTab },
-    { id: 'book', label: 'Elite Mindset Book', load: loadBookTab, clear: clearBookTab },
+    { id: 'book', label: 'Books', load: loadBookTab, clear: clearBookTab },
     { id: 'physical', label: 'Physical Progress', load: loadPhysicalTab, clear: clearPhysicalTab }
   ];
   const tabRuntime = new Map();
@@ -298,7 +298,7 @@
     await loadScript(`book-model.js?v=${ASSET_VERSION}`);
     await loadScript(`book.js?v=${ASSET_VERSION}`);
     if (!window.FamilyOSBook || !window.FamilyOSBookModel || !window.FamilyOSCalendarModel) {
-      throw new Error('Elite Mindset Book did not initialize.');
+      throw new Error('Books did not initialize.');
     }
     await window.FamilyOSBook.load({ client });
   }

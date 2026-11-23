@@ -1,6 +1,6 @@
 # Dircks Family OS
 
-Private static dashboard. Finances stay the default view. Calendar, Elite Mindset Book, and Physical Progress are additional tabs. Each tab reads `family_api` only after an approved sign-in. This repository is public: do not commit weights, measurements, meal contents, calendar entries, outreach rows, or other personal records. Those values load at runtime.
+Private static dashboard. Finances stay the default view. Calendar, Books, and Physical Progress are additional tabs. Each tab reads `family_api` only after an approved sign-in. This repository is public: do not commit weights, measurements, meal contents, calendar entries, outreach rows, or other personal records. Those values load at runtime.
 
 ## Tabs
 
@@ -10,7 +10,7 @@ Tabs are one list in `app.js`:
 const TABS = [
   { id: 'finances', label: 'Finances', load: loadFinances, clear: clearFinances },
   { id: 'calendar', label: 'Calendar', load: loadCalendarTab, clear: clearCalendarTab },
-  { id: 'book', label: 'Elite Mindset Book', load: loadBookTab, clear: clearBookTab },
+  { id: 'book', label: 'Books', load: loadBookTab, clear: clearBookTab },
   { id: 'physical', label: 'Physical Progress', load: loadPhysicalTab, clear: clearPhysicalTab }
 ];
 ```
@@ -49,14 +49,16 @@ Authenticated reads use the existing supabase-js client and `client.schema('fami
 
 Portuguese plan text is rendered verbatim.
 
-## Calendar and Elite Mindset Book
+## Calendar and books
 
 `supabase/012_calendar_book.sql` is the schema already applied to the private database. Do not run it again from the app. It has no personal rows. The browser reads `family_api` with the signed-in supabase-js client and does not insert. Bots write with the service role, or with SQL as the table owner. Never put the service role key in this repo or in the browser.
+
+`supabase/013_book_titles.sql` is not applied by this site. Apply it in the private database after review. It adds `book` on `book_outreach`, sets existing rows to `elite_mindset`, and accepts `signal_over_noise`. Until that column exists, the Books tab still loads. Rows with no book value stay on Elite Mindset. Signal Over Noise still shows its countdown and milestones, and its outreach list says the column is not there yet.
 
 | Object | Who can write | Notes |
 | --- | --- | --- |
 | `family_api.calendar_events` | service role | Read-only for the signed-in dashboard. |
-| `family_api.book_outreach` | service role | Same. `stage` is one of `found`, `drafted`, `pending_approval`, `sent`, `replied`, `booked`, `skipped`. |
+| `family_api.book_outreach` | service role | Same. `stage` is one of `found`, `drafted`, `pending_approval`, `sent`, `replied`, `booked`, `skipped`. After `013_book_titles.sql`, `book` is `elite_mindset` or `signal_over_noise`. |
 | `family_api.calendar_conflicts(starts_at, ends_at, exclude_id)` | service role and the signed-in owner | Returns overlapping rows whose status is not `cancelled`. |
 
 `ends_at` is exclusive. A block that ends at 10:00 does not overlap a block that starts at 10:00. Cancelled rows are ignored by the conflict check and hidden in the dashboard. Overlaps are still allowed so a bot can record them. The calendar tab marks every non-cancelled overlap.
@@ -122,7 +124,7 @@ const { error } = await supabase.schema('family_api').from('calendar_events').in
 });
 ```
 
-`category` is stored lowercase. `podcast` and `interview` are what the Elite Mindset Book tab lists as booked appearances. `source` is the bot or person that added the row. `status` is `tentative`, `confirmed`, or `cancelled`. `link` must start with `https://`.
+`category` is stored lowercase. `podcast` and `interview` are what the Elite Mindset view lists as booked appearances. `source` is the bot or person that added the row. `status` is `tentative`, `confirmed`, or `cancelled`. `link` must start with `https://`.
 
 Pass the row id as `exclude_id` when you are moving an existing event and do not want it to conflict with itself.
 
@@ -136,9 +138,22 @@ const { data, error } = await supabase
   .order('starts_at', { ascending: true });
 ```
 
+### Books
+
+The Books tab switches between two titles. Elite Mindset keeps the published view: podcast guest notes, booked podcasts and interviews, and outreach. Signal Over Noise is the pre-launch view: a countdown to launch on 2026-12-29, milestones, and the same outreach stages for presale and marketing.
+
+| Id | What the tab shows |
+| --- | --- |
+| `elite_mindset` | Published book. Guest notes, podcast and interview events, outreach. |
+| `signal_over_noise` | Pre-launch. Countdown, key dates, presale and marketing outreach. |
+
+Signal Over Noise is about telling signal from noise in life. Signal raises the level you live at, and noise holds you below it.
+
+Milestones live in `book-model.js` on the Signal Over Noise entry, not in the database. The first two are manuscript final on 2026-12-05 and launch on 2026-12-29. Append `{ id, label, on: 'YYYY-MM-DD' }` to add another date. `launchOn` is the countdown. The countdown uses Troy's current time zone, the same zone the calendar uses.
+
 ### Outreach rows
 
-Ids look like `EM-2026-11-15-01`. The loader that fills this table is separate. Do not commit real rows.
+Ids look like `EM-2026-11-15-01` for Elite Mindset. After `013_book_titles.sql`, Signal Over Noise ids look like `SON-2026-12-01-01` and the `book` column must match the prefix. The loader that fills this table is separate. Do not commit real rows. A blank `book` counts as Elite Mindset, which is also the database default.
 
 ```sql
 insert into family_private.book_outreach
@@ -156,7 +171,26 @@ values (
 );
 ```
 
-`stage` is normalized on write (`Pending Approval` becomes `pending_approval`). `raw_status` keeps the original words. `updated_at` is set by the database on insert and update.
+Omitting `book` stores `elite_mindset` once `013_book_titles.sql` has been applied. A Signal Over Noise example, still fake:
+
+```sql
+insert into family_private.book_outreach
+  (id, book, date_found, place, url, language, stage, raw_status, posted_date, notes)
+values (
+  'SON-2026-12-01-01',
+  'signal_over_noise',
+  '2026-12-01',
+  'Example Newsletter',
+  'https://example.com/demo-list',
+  'English',
+  'found',
+  'new lead',
+  null,
+  'Example only. Not a real pitch.'
+);
+```
+
+`stage` is normalized on write (`Pending Approval` becomes `pending_approval`). `raw_status` keeps the original words. `updated_at` is set by the database on insert and update. `book` is normalized the same way (`Signal Over Noise` becomes `signal_over_noise`).
 
 ## Checks
 

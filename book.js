@@ -1,4 +1,6 @@
-/* Elite Mindset Book tab. Loaded only when that tab is first opened.
+/* Books tab. Loaded only when that tab is first opened.
+ * Elite Mindset keeps booked appearances and outreach.
+ * Signal Over Noise is the pre-launch countdown, milestones, and the same outreach list.
  * Renders into #panel-book and never touches the finance panel. */
 (() => {
   'use strict';
@@ -6,13 +8,20 @@
   const book = window.FamilyOSBookModel;
   const calendar = window.FamilyOSCalendarModel;
   const $ = (id) => document.getElementById(id);
-  const NOTES_URL = 'https://cursor.com/canvas/store-9aec255a-e639-4083-8ff7-a819972f266b/6374ddf5-dfbb-4d55-afb9-e43d0c8e62e9';
 
+  const OUTREACH_COLUMNS = 'id,date_found,place,url,language,stage,raw_status,posted_date,notes,updated_at';
   let token = 0;
   let client = null;
   let wired = false;
-  let appearances = [];
-  let outreach = [];
+  let selectedBook = book ? book.DEFAULT_BOOK_ID : 'elite_mindset';
+  let cache = emptyCache();
+
+  function emptyCache() {
+    return {
+      events: { rows: [], state: 'ok' },
+      outreach: { rows: [], state: 'ok', bookColumn: true }
+    };
+  }
 
   function text(value) {
     return String(value == null ? '' : value);
@@ -49,6 +58,54 @@
 
   function labelWords(value) {
     return text(value).replace(/_/g, ' ').replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  }
+
+  function setHidden(id, hidden) {
+    const node = $(id);
+    if (!node) return;
+    node.hidden = hidden;
+    node.classList.toggle('is-hidden', hidden);
+  }
+
+  function paintSwitcher() {
+    const host = $('book-switch');
+    if (!host || !book) return;
+    const existing = [...host.querySelectorAll('[data-book]')];
+    const same = existing.length === book.BOOKS.length
+      && existing.every((node, index) => node.dataset.book === book.BOOKS[index].id);
+    if (!same) {
+      host.replaceChildren();
+      for (const entry of book.BOOKS) {
+        const button = el('button', '', entry.label);
+        button.type = 'button';
+        button.dataset.book = entry.id;
+        host.append(button);
+      }
+    }
+    for (const button of host.querySelectorAll('[data-book]')) {
+      const on = button.dataset.book === selectedBook;
+      button.classList.toggle('selected', on);
+      button.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+
+  function paintChrome(view) {
+    const title = $('book-title');
+    const lead = $('book-lead');
+    if (title) title.textContent = view.heading;
+    if (lead) lead.textContent = view.lead;
+    const notes = $('book-notes-link');
+    if (notes && view.showNotes && view.notesUrl) {
+      notes.href = view.notesUrl;
+      notes.target = '_blank';
+      notes.rel = 'noopener noreferrer';
+    }
+    setHidden('book-notes-link', !view.showNotes);
+    setHidden('book-prelaunch', !view.prelaunch);
+    setHidden('book-appearances-card', !view.showAppearances);
+    const heading = $('book-outreach-heading');
+    if (heading) heading.textContent = view.outreachHeading;
+    paintSwitcher();
   }
 
   function paintAppearances(rows, state) {
@@ -102,7 +159,7 @@
     }
   }
 
-  function paintTable(rows, state) {
+  function paintTable(rows, state, view, bookColumn) {
     const body = $('book-rows');
     const note = $('book-table-note');
     if (!body) return;
@@ -115,9 +172,17 @@
       if (note) note.textContent = 'The outreach list could not be loaded.';
       return;
     }
-    const recent = book.recentOutreach(rows, 15);
+    if (view.prelaunch && !bookColumn) {
+      if (note) note.textContent = 'Presale and marketing outreach will show here after the book column is added.';
+      return;
+    }
+    const recent = book.recentOutreach(book.rowsForBook(rows, view.id), 15);
     if (!recent.length) {
-      if (note) note.textContent = 'No outreach entries yet. They will appear here after the next load.';
+      if (note) {
+        note.textContent = view.prelaunch
+          ? 'No presale or marketing entries yet. They will appear here after the next load.'
+          : 'No outreach entries yet. They will appear here after the next load.';
+      }
       return;
     }
     if (note) note.textContent = recent.length === 1 ? '1 most recent entry.' : `${recent.length} most recent entries.`;
@@ -155,28 +220,102 @@
     }
   }
 
+  function paintCountdown(view, now, zone) {
+    const number = $('book-countdown');
+    const note = $('book-countdown-note');
+    const when = $('book-launch-date');
+    const countdown = book.launchCountdown(view.id, now, zone);
+    if (!countdown) {
+      if (number) {
+        number.textContent = '';
+        number.removeAttribute('aria-label');
+      }
+      if (note) note.textContent = 'Launch date is not available.';
+      if (when) when.textContent = '';
+      return;
+    }
+    if (when) when.textContent = countdown.launchLabel;
+    if (number) {
+      number.textContent = countdown.number;
+      number.setAttribute('aria-label', countdown.spoken);
+    }
+    if (note) note.textContent = countdown.note;
+  }
+
+  function paintMilestones(view, now, zone) {
+    const host = $('book-milestones');
+    if (!host) return;
+    host.replaceChildren();
+    const items = book.milestonePlan(view.id, now, zone);
+    if (!items.length) {
+      empty(host, 'Milestones will show here when they are added.');
+      return;
+    }
+    for (const item of items) {
+      const row = el('article', `milestone is-${item.tone}`);
+      const date = el('div', 'milestone-date');
+      date.append(el('span', '', item.month), el('strong', '', item.day));
+      const copy = el('div', 'milestone-copy');
+      copy.append(el('h3', '', item.label), el('p', '', item.dateLabel));
+      const pillClass = item.tone === 'today' ? 'pill accent' : 'pill';
+      row.append(date, copy, el('span', pillClass, item.status));
+      host.append(row);
+    }
+  }
+
+  function clearPrelaunch() {
+    const number = $('book-countdown');
+    const note = $('book-countdown-note');
+    const when = $('book-launch-date');
+    if (number) {
+      number.textContent = '';
+      number.removeAttribute('aria-label');
+    }
+    if (note) note.textContent = '';
+    if (when) when.textContent = '';
+    $('book-milestones')?.replaceChildren();
+  }
+
   function paint(bundle) {
+    const view = book.viewFor(selectedBook);
     const now = new Date();
+    const zone = calendar.troyZone(now);
     const today = $('book-today');
-    if (today && calendar) {
+    if (today) {
       today.textContent = new Intl.DateTimeFormat('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: calendar.troyZone(now)
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: zone
       }).format(now).toUpperCase();
     }
-    paintAppearances(bundle.events.rows, bundle.events.state);
-    paintStages(bundle.outreach.state === 'ok' ? bundle.outreach.rows : []);
-    paintTable(bundle.outreach.rows, bundle.outreach.state);
+    paintChrome(view);
+    if (view.showAppearances) paintAppearances(bundle.events.rows, bundle.events.state);
+    else $('book-appearances')?.replaceChildren();
+    if (view.prelaunch) {
+      paintCountdown(view, now, zone);
+      paintMilestones(view, now, zone);
+    } else {
+      clearPrelaunch();
+    }
+    const outreachRows = bundle.outreach.state === 'ok' ? book.rowsForBook(bundle.outreach.rows, view.id) : [];
+    paintStages(outreachRows);
+    paintTable(bundle.outreach.rows, bundle.outreach.state, view, bundle.outreach.bookColumn);
+    if (view.prelaunch && bundle.outreach.state === 'ok' && !bundle.outreach.bookColumn) {
+      setStatus('Presale outreach stays empty until the book column exists. Elite Mindset is unchanged.');
+    } else {
+      setStatus('');
+    }
   }
 
   function wire() {
     if (wired) return;
     wired = true;
-    const link = $('book-notes-link');
-    if (link) {
-      link.href = NOTES_URL;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-    }
+    paintSwitcher();
+    $('book-switch')?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-book]');
+      if (!button || !book.bookById(button.dataset.book)) return;
+      if (button.dataset.book === selectedBook) return;
+      selectedBook = button.dataset.book;
+      paint(cache);
+    });
     $('book-refresh')?.addEventListener('click', () => {
       const button = $('book-refresh');
       button.disabled = true;
@@ -190,16 +329,30 @@
     return { rows: data || [], state: 'ok', error: null };
   }
 
+  async function readOutreach(api) {
+    const withBook = await readRows(api, 'book_outreach', `${OUTREACH_COLUMNS},book`);
+    if (withBook.state !== 'error' || !book.isMissingColumn(withBook.error, 'book')) {
+      return {
+        rows: withBook.rows,
+        state: withBook.state,
+        error: withBook.error,
+        bookColumn: withBook.state === 'ok'
+      };
+    }
+    const plain = await readRows(api, 'book_outreach', OUTREACH_COLUMNS);
+    return { rows: plain.rows, state: plain.state, error: plain.error, bookColumn: false };
+  }
+
   async function load(context) {
     const current = ++token;
     client = context?.client || client;
-    if (!book || !calendar) throw new Error('Elite Mindset Book helpers did not load.');
+    if (!book || !calendar) throw new Error('Books helpers did not load.');
     wire();
-    setStatus('Loading the book.');
+    setStatus('Loading books.');
     showError('');
     if (!client) {
       setStatus('');
-      showError('The book is not connected yet. The rest of your dashboard is unaffected.');
+      showError('Books are not connected yet. The rest of your dashboard is unaffected.');
       return;
     }
     const api = client.schema('family_api');
@@ -208,34 +361,33 @@
     try {
       [events, outreachRows] = await Promise.all([
         readRows(api, 'calendar_events', 'id,title,starts_at,ends_at,tz,all_day,category,source,location,link,notes,status'),
-        readRows(api, 'book_outreach', 'id,date_found,place,url,language,stage,raw_status,posted_date,notes,updated_at')
+        readOutreach(api)
       ]);
     } catch (error) {
       if (current !== token) return;
-      console.error('Elite Mindset Book request failed.', error);
+      console.error('Books request failed.', error);
       setStatus('');
-      showError('The book could not be loaded. The rest of your dashboard is unaffected.');
+      showError('Books could not be loaded. The rest of your dashboard is unaffected.');
       return;
     }
     if (current !== token) return;
-    appearances = events.rows;
-    outreach = outreachRows.rows;
     if (events.state === 'error' && outreachRows.state === 'error') {
-      showError('The book could not be loaded. The rest of your dashboard is unaffected.');
+      showError('Books could not be loaded. The rest of your dashboard is unaffected.');
     } else if (events.state === 'missing' && outreachRows.state === 'missing') {
       showError('Book storage is not ready yet. The rest of your dashboard is unaffected.');
     } else {
       showError('');
     }
     setStatus('');
-    paint({ events, outreach: outreachRows });
+    cache = { events, outreach: outreachRows };
+    paint(cache);
   }
 
   function clear() {
     token += 1;
     client = null;
-    appearances = [];
-    outreach = [];
+    selectedBook = book ? book.DEFAULT_BOOK_ID : 'elite_mindset';
+    cache = emptyCache();
     showError('');
     setStatus('');
     const today = $('book-today');
@@ -245,6 +397,8 @@
     $('book-appearances')?.replaceChildren();
     $('book-stages')?.replaceChildren();
     $('book-rows')?.replaceChildren();
+    clearPrelaunch();
+    if (book) paintChrome(book.viewFor(selectedBook));
   }
 
   window.FamilyOSBook = { load, clear };

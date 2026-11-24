@@ -1,4 +1,4 @@
-# Dircks Family OS
+# Troy Dircks OS
 
 Private static dashboard. Finances stay the default view. Calendar, Books, and Physical Progress are additional tabs. Each tab reads `family_api` only after an approved sign-in. This repository is public: do not commit weights, measurements, meal contents, calendar entries, outreach rows, or other personal records. Those values load at runtime.
 

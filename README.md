@@ -65,11 +65,13 @@ Portuguese plan text is rendered verbatim.
 
 ### Time zones
 
-`starts_at` and `ends_at` are absolute instants. `tz` is the IANA name the event was scheduled in, such as `America/Belem` or `America/Denver`. The dashboard shows that zone, and also Troy's current zone when the names differ.
+`starts_at` and `ends_at` are absolute instants. `tz` is the IANA name the event was scheduled in, such as `America/Belem` or `America/Denver`. The Calendar tab ignores that column and the device time zone when it draws a clock. Every timed event is formatted with `timeZone: 'America/Denver'` and a small MT label, so MST and MDT follow the zone automatically. The month grid, upcoming day groups, and the highlighted today use Denver midnights as well.
 
-Troy's current zone is `America/Belem` until 2026-12-14 00:00 in Belem (`2026-12-14T03:00:00Z`), then `America/Denver`.
+All-day events stay on the civil dates stored in `tz`. They use local midnights: `all_day = true`, `starts_at` at the first day's midnight, `ends_at` at the midnight after the last day. A one-day event on December 1 in Belem ends at December 2 00:00 in Belem, not at 23:59, and the calendar still shows December 1 rather than the previous Denver evening.
 
-All-day events use local midnights in `tz`: `all_day = true`, `starts_at` at the first day's midnight, `ends_at` at the midnight after the last day. A one-day event on December 1 in Belem ends at December 2 00:00 in Belem, not at 23:59.
+The dashboard does not insert events. `eventFromDenverFields` is how a naive date or time entry is read: the wall time is America/Denver, and the resulting row sets `tz` to `America/Denver`. Do not pass that helper a value that already has a `Z` or a numeric offset.
+
+The Books countdown still uses `troyZone`: `America/Belem` until 2026-12-14 00:00 in Belem (`2026-12-14T03:00:00Z`), then `America/Denver`. Booked appearance times use the same Mountain Time formatting as the calendar.
 
 Build an instant in a zone with `timestamp at time zone`:
 

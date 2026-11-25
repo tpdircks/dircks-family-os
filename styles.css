@@ -376,6 +376,7 @@ a.button { display: inline-flex; align-items: center; justify-content: center; t
 .cal-event.is-overlap { border-color: #e2c2b4; background: var(--terracotta-light); }
 .cal-event h3 { margin: 0; font-size: 1rem; }
 .cal-when, .cal-when-alt, .cal-notes, .cal-flag { margin: 6px 0 0; font-size: .84rem; line-height: 1.45; }
+.tz-label { display: inline-block; margin-left: .4em; padding: 0 .3em; border-radius: 4px; background: var(--green-light); color: var(--green); font-size: .68rem; font-weight: 700; letter-spacing: .06em; vertical-align: 0.12em; }
 .cal-when-alt { color: var(--ink-soft); }
 .cal-link { color: var(--green); font-size: .8rem; font-weight: 650; }
 .empty-copy { margin: 14px 0 0; color: var(--ink-soft); }

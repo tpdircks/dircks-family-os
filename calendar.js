@@ -47,8 +47,7 @@
 
   function currentMonth(now) {
     if (visibleMonth) return visibleMonth;
-    const zone = model.troyZone(now);
-    const parts = model.zonedParts(now, zone);
+    const parts = model.zonedParts(now, model.DISPLAY_ZONE);
     visibleMonth = { year: parts.year, month: parts.month };
     return visibleMonth;
   }
@@ -61,12 +60,19 @@
     paint(cache || []);
   }
 
+  function whenLine(described) {
+    const line = el('p', 'cal-when');
+    line.append(document.createTextNode(described.primary));
+    if (described.timeLabel) line.append(el('span', 'tz-label', described.timeLabel));
+    return line;
+  }
+
   function eventCard(event, overlaps) {
     const described = model.describeEvent(event, new Date());
     const overlap = overlaps.has(String(event.id));
     const row = el('article', overlap ? 'cal-event is-overlap' : 'cal-event');
     row.append(el('h3', '', event.title || 'Untitled'));
-    row.append(el('p', 'cal-when', described.primary));
+    row.append(whenLine(described));
     if (described.secondary) row.append(el('p', 'cal-when-alt', described.secondary));
     const bits = [
       labelWords(event.category || 'general'),
@@ -92,9 +98,8 @@
     const host = $('calendar-month');
     const label = $('calendar-month-label');
     if (!host) return;
-    const zone = model.troyZone(now);
     const month = currentMonth(now);
-    const grid = model.monthGrid(month.year, month.month, zone, events, now);
+    const grid = model.monthGrid(month.year, month.month, model.DISPLAY_ZONE, events, now);
     if (label) label.textContent = grid.label;
     host.replaceChildren();
     for (const weekday of grid.weekdays) host.append(el('div', 'month-dow', weekday));
@@ -124,7 +129,7 @@
     const host = $('calendar-upcoming');
     const legend = $('calendar-legend');
     if (!host) return;
-    const zone = model.troyZone(now);
+    const zone = model.DISPLAY_ZONE;
     const overlaps = model.overlappingIds(events);
     host.replaceChildren();
     if (legend) {
@@ -144,7 +149,7 @@
       });
       heading.append(clear);
       host.append(heading);
-      const rows = model.eventsOnDay(events, selectedDay, zone);
+      const rows = model.eventsOnDay(events, selectedDay);
       if (!rows.length) {
         host.append(el('p', 'empty-copy', 'Nothing scheduled on this day.'));
       } else {
@@ -175,7 +180,7 @@
     const note = $('calendar-zone-note');
     if (today) {
       today.textContent = new Intl.DateTimeFormat('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: model.troyZone(now)
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: model.DISPLAY_ZONE
       }).format(now).toUpperCase();
     }
     if (note) note.textContent = model.zoneNote(now);

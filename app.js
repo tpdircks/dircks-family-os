@@ -41,7 +41,7 @@
 
   /* Life OS tabs. Add one entry, one [data-tab-panel] section, and an optional
    * load/clear hook. See README.md. localStorage stores the tab id only. */
-  const ASSET_VERSION = '20261123a';
+  const ASSET_VERSION = '20261125a';
   const TAB_STORAGE_KEY = 'family-os-tab';
   const TABS = [
     { id: 'finances', label: 'Finances', load: loadFinances, clear: clearFinances },

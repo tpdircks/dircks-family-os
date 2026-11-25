@@ -135,7 +135,10 @@
         const described = calendar.describeEvent(event, now);
         const card = el('article', 'cal-event');
         card.append(el('h3', '', event.title || 'Untitled'));
-        card.append(el('p', 'cal-when', described.primary));
+        const when = el('p', 'cal-when');
+        when.append(document.createTextNode(described.primary));
+        if (described.timeLabel) when.append(el('span', 'tz-label', described.timeLabel));
+        card.append(when);
         if (described.secondary) card.append(el('p', 'cal-when-alt', described.secondary));
         const bits = [labelWords(event.category), labelWords(event.status)];
         if (event.location) bits.push(event.location);
